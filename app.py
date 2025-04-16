@@ -148,6 +148,18 @@ class ThemedTk(tk.Tk):
                       background=[('active', ACCENT_COLOR)],
                       foreground=[('active', BUTTON_FG)])
         
+        # macOS-style buttons
+        self.style.configure("MacOS.TButton",
+                           relief="flat",
+                           background=BUTTON_BG,
+                           foreground=BUTTON_FG,
+                           padding=(12, 6),
+                           font=("SF Pro", 10))
+        self.style.map('MacOS.TButton',
+                     background=[('active', ACCENT_COLOR), ('pressed', BACKGROUND_COLOR)],
+                     foreground=[('active', BUTTON_FG), ('pressed', BUTTON_FG)],
+                     relief=[('pressed', 'sunken')])
+        
         # Status message styles with color coding
         self.style.configure("success.TLabel", foreground=SUCCESS_COLOR, background=SURFACE_COLOR)
         self.style.configure("error.TLabel", foreground=ERROR_COLOR, background=SURFACE_COLOR)
@@ -157,7 +169,7 @@ class ThemedTk(tk.Tk):
         self.style.configure("Header.TLabel", 
                             foreground=TEXT_COLOR, 
                             background=BACKGROUND_COLOR, 
-                            font=("Arial", 16, "bold"))
+                            font=("SF Pro", 16, "bold"))
         
         # Configure master window
         self.configure(background=BACKGROUND_COLOR)
@@ -770,13 +782,17 @@ class ChangeDetectionApp(ThemedTk):
             self.progress.stop()
             self.progress.pack_forget()
             
-            # Configure matplotlib to use our dark theme before creating any figure
+            # Configure matplotlib to match macOS dark theme
             plt.style.use('dark_background')
             
-            # Set default figure facecolor to match our background to prevent white flash
+            # Set default figure facecolor to match our macOS gray background
             plt.rcParams['figure.facecolor'] = BACKGROUND_COLOR
             plt.rcParams['axes.facecolor'] = SURFACE_COLOR
             plt.rcParams['savefig.facecolor'] = BACKGROUND_COLOR
+            plt.rcParams['text.color'] = TEXT_COLOR
+            plt.rcParams['axes.labelcolor'] = TEXT_COLOR
+            plt.rcParams['xtick.color'] = TEXT_COLOR
+            plt.rcParams['ytick.color'] = TEXT_COLOR
             
             # Create the figure with proper background color from the start
             fig = plt.figure(figsize=(15, 5), facecolor=BACKGROUND_COLOR)
@@ -811,16 +827,16 @@ class ChangeDetectionApp(ThemedTk):
             canvas_frame = ttk.Frame(self.image_frame, style="Card.TFrame")
             canvas_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
             
-            # Add a subtle border
+            # Add a subtle border with macOS-style rounded corners
             canvas_frame.configure(borderwidth=1, relief="solid")
             
             # Configure the background of the canvas before adding it to the frame
             canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
-            canvas.get_tk_widget().configure(bg=BACKGROUND_COLOR, highlightbackground=BACKGROUND_COLOR, highlightcolor=BACKGROUND_COLOR)
+            canvas.get_tk_widget().configure(bg=BACKGROUND_COLOR, highlightbackground=SURFACE_COLOR, highlightcolor=SURFACE_COLOR, highlightthickness=1)
             canvas.draw()
             canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
             
-            # Add performance metrics section
+            # Add performance metrics section with macOS styling
             metrics_frame = ttk.LabelFrame(self.image_frame, text="Performance Metrics", style="Card.TLabelframe")
             metrics_frame.pack(fill=tk.X, padx=5, pady=10)
             
@@ -828,18 +844,18 @@ class ChangeDetectionApp(ThemedTk):
             metrics_info_frame = ttk.Frame(metrics_frame, style="Card.TFrame")
             metrics_info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
             
-            # Display basic metrics in the left column
-            ttk.Label(metrics_info_frame, text="Accuracy:", style="Card.TLabel", anchor=tk.W).grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
-            ttk.Label(metrics_info_frame, text=f"{accuracy:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+            # Display basic metrics in the left column with macOS-style spacing
+            ttk.Label(metrics_info_frame, text="Accuracy:", style="Card.TLabel", anchor=tk.W).grid(row=0, column=0, sticky=tk.W, padx=5, pady=4)
+            ttk.Label(metrics_info_frame, text=f"{accuracy:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=0, column=1, sticky=tk.W, padx=5, pady=4)
             
-            ttk.Label(metrics_info_frame, text="Precision:", style="Card.TLabel", anchor=tk.W).grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
-            ttk.Label(metrics_info_frame, text=f"{precision:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text="Precision:", style="Card.TLabel", anchor=tk.W).grid(row=1, column=0, sticky=tk.W, padx=5, pady=4)
+            ttk.Label(metrics_info_frame, text=f"{precision:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=1, column=1, sticky=tk.W, padx=5, pady=4)
             
-            ttk.Label(metrics_info_frame, text="Recall:", style="Card.TLabel", anchor=tk.W).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
-            ttk.Label(metrics_info_frame, text=f"{recall:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text="Recall:", style="Card.TLabel", anchor=tk.W).grid(row=2, column=0, sticky=tk.W, padx=5, pady=4)
+            ttk.Label(metrics_info_frame, text=f"{recall:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=2, column=1, sticky=tk.W, padx=5, pady=4)
             
-            ttk.Label(metrics_info_frame, text="F1-Score:", style="Card.TLabel", anchor=tk.W).grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
-            ttk.Label(metrics_info_frame, text=f"{f1:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=3, column=1, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text="F1-Score:", style="Card.TLabel", anchor=tk.W).grid(row=3, column=0, sticky=tk.W, padx=5, pady=4)
+            ttk.Label(metrics_info_frame, text=f"{f1:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=3, column=1, sticky=tk.W, padx=5, pady=4)
             
             # Add confusion matrix in the right column
             conf_matrix_frame = ttk.Frame(metrics_frame, style="Card.TFrame")
@@ -849,33 +865,45 @@ class ChangeDetectionApp(ThemedTk):
             tn, fp, fn, tp = conf_matrix.ravel()
             
             # Create a simple grid of labels for confusion matrix
-            ttk.Label(conf_matrix_frame, text="Confusion Matrix:", style="Card.TLabel", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=3, sticky=tk.W, padx=5, pady=5)
+            ttk.Label(conf_matrix_frame, text="Confusion Matrix:", style="Card.TLabel", font=("SF Pro", 11, "bold")).grid(row=0, column=0, columnspan=3, sticky=tk.W, padx=5, pady=5)
             
             # Header row
             ttk.Label(conf_matrix_frame, text="", style="Card.TLabel").grid(row=1, column=0, padx=5, pady=2)
             ttk.Label(conf_matrix_frame, text="Predicted No", style="Card.TLabel").grid(row=1, column=1, padx=5, pady=2)
             ttk.Label(conf_matrix_frame, text="Predicted Yes", style="Card.TLabel").grid(row=1, column=2, padx=5, pady=2)
             
+            # Define custom styles for the confusion matrix cells with macOS-like colors
+            self.style.configure("TN.TLabel", background=SUCCESS_COLOR, foreground="#000000", font=("SF Pro", 9, "bold"))
+            self.style.configure("FP.TLabel", background=ERROR_COLOR, foreground="#FFFFFF", font=("SF Pro", 9, "bold"))
+            self.style.configure("FN.TLabel", background=ERROR_COLOR, foreground="#FFFFFF", font=("SF Pro", 9, "bold"))
+            self.style.configure("TP.TLabel", background=SUCCESS_COLOR, foreground="#000000", font=("SF Pro", 9, "bold"))
+            
             # Actual No row
             ttk.Label(conf_matrix_frame, text="Actual No", style="Card.TLabel").grid(row=2, column=0, padx=5, pady=2)
-            ttk.Label(conf_matrix_frame, text=f"TN: {tn}", style="Card.TLabel", background=SUCCESS_COLOR).grid(row=2, column=1, padx=5, pady=2)
-            ttk.Label(conf_matrix_frame, text=f"FP: {fp}", style="Card.TLabel", background=ERROR_COLOR).grid(row=2, column=2, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"TN: {tn}", style="TN.TLabel").grid(row=2, column=1, padx=5, pady=2, sticky="nsew")
+            ttk.Label(conf_matrix_frame, text=f"FP: {fp}", style="FP.TLabel").grid(row=2, column=2, padx=5, pady=2, sticky="nsew")
             
             # Actual Yes row
             ttk.Label(conf_matrix_frame, text="Actual Yes", style="Card.TLabel").grid(row=3, column=0, padx=5, pady=2)
-            ttk.Label(conf_matrix_frame, text=f"FN: {fn}", style="Card.TLabel", background=ERROR_COLOR).grid(row=3, column=1, padx=5, pady=2)
-            ttk.Label(conf_matrix_frame, text=f"TP: {tp}", style="Card.TLabel", background=SUCCESS_COLOR).grid(row=3, column=2, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"FN: {fn}", style="FN.TLabel").grid(row=3, column=1, padx=5, pady=2, sticky="nsew")
+            ttk.Label(conf_matrix_frame, text=f"TP: {tp}", style="TP.TLabel").grid(row=3, column=2, padx=5, pady=2, sticky="nsew")
+            
+            # Make the cells expand to fill available space
+            for i in range(1, 3):
+                conf_matrix_frame.columnconfigure(i, weight=1)
+            for i in range(2, 4):
+                conf_matrix_frame.rowconfigure(i, weight=1)
             
             # Add a toolbar frame with theme-consistent buttons
             toolbar_frame = ttk.Frame(self.image_frame, style="Card.TFrame")
             toolbar_frame.pack(fill=tk.X, pady=10)
             
-            # Add controls for navigation or export
+            # Add controls for navigation or export with macOS-style buttons
             export_btn = ttk.Button(
                 toolbar_frame, 
                 text="💾 Export Results",
                 command=lambda: self.export_results(fig, prediction_colored),
-                style="Rounded.TButton"
+                style="MacOS.TButton"
             )
             export_btn.pack(side=tk.RIGHT, padx=10, pady=5)
             
@@ -884,7 +912,7 @@ class ChangeDetectionApp(ThemedTk):
                 toolbar_frame, 
                 text="⏮ Previous",
                 command=self.prev_image,
-                style="Rounded.TButton"
+                style="MacOS.TButton"
             )
             prev_btn.pack(side=tk.LEFT, padx=10, pady=5)
             
@@ -892,7 +920,7 @@ class ChangeDetectionApp(ThemedTk):
                 toolbar_frame, 
                 text="Next ⏭",
                 command=self.next_image,
-                style="Rounded.TButton"
+                style="MacOS.TButton"
             )
             next_btn.pack(side=tk.LEFT, padx=5, pady=5)
             

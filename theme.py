@@ -1,14 +1,14 @@
-# Theme colors for the Change Detection application
+# Theme colors for the Change Detection application - macOS Dark Theme
 # Main colors
-background = "#001F2C"  # Dark blue background
-text = "#549EBE"        # Light blue text
-surface = "#042B3C"     # Slightly lighter background for surfaces
-card = "#92C6DD"        # Light blue for cards
+background = "#1E1E1E"  # Dark gray background (macOS dark mode)
+text = "#FFFFFF"        # White text
+surface = "#2D2D2D"     # Slightly lighter background for surfaces
+card = "#333333"        # Card background
 
 # Additional complementary colors
-accent = "#549EBE"      # Same as text for consistency
-button_bg = "#0C4D6C"   # Darker shade of accent
+accent = "#0A84FF"      # macOS blue accent color
+button_bg = "#4D4D4D"   # Gray button background
 button_fg = "#FFFFFF"   # White text on buttons
-highlight = "#E3F2FD"   # Light blue highlight
-error = "#FF5252"       # Error/warning color
-success = "#4CAF50"     # Success color
+highlight = "#6E6E6E"   # Light gray highlight
+error = "#FF453A"       # macOS red error color
+success = "#30D158"     # macOS green success color
