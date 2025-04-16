@@ -11,6 +11,7 @@ import threading
 import queue
 import random  # For random image selection
 import sys  # For system information
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 # Import project-specific components
 from src.change_detection import ChangeDetectionTask
@@ -31,7 +32,65 @@ from theme import (
 )
 
 # Application version
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.3"  # Updated version number
+
+# Helper class for scrollable frames
+class ScrollableFrame(ttk.Frame):
+    """A scrollable frame that can contain widgets."""
+    def __init__(self, container, *args, **kwargs):
+        super().__init__(container, *args, **kwargs)
+        
+        # Create a canvas for scrolling
+        self.canvas = tk.Canvas(self, bg=BACKGROUND_COLOR, highlightthickness=0)
+        
+        # Create vertical scrollbar
+        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        
+        # Create the scrollable frame that will hold all content
+        self.scrollable_frame = ttk.Frame(self.canvas, style="TFrame")
+        
+        # Configure scroll region when frame size changes
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+        
+        # Create a window inside the canvas with the frame
+        self.canvas_frame = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # Bind canvas resize to update inner window size
+        self.canvas.bind("<Configure>", self.on_canvas_resize)
+        
+        # Configure the canvas to use the scrollbar
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Pack everything - scrollbar on right, canvas expands to fill
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Bind mouse wheel to scrolling
+        self.bind_mousewheel()
+    
+    def on_canvas_resize(self, event):
+        """Resize the inner frame to match the canvas width"""
+        # Update the width of the frame inside the canvas
+        self.canvas.itemconfig(self.canvas_frame, width=event.width)
+    
+    def bind_mousewheel(self):
+        """Bind mousewheel to scrolling"""
+        def _on_mousewheel(event):
+            # Scroll direction depends on the platform
+            if event.num == 4 or event.delta > 0:
+                self.canvas.yview_scroll(-1, "units")
+            elif event.num == 5 or event.delta < 0:
+                self.canvas.yview_scroll(1, "units")
+        
+        # Bind for different platforms
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows and MacOS
+        self.canvas.bind_all("<Button-4>", _on_mousewheel)    # Linux scroll up
+        self.canvas.bind_all("<Button-5>", _on_mousewheel)    # Linux scroll down
 
 class ThemedTk(tk.Tk):
     """Custom Tk class with theme integration"""
@@ -257,8 +316,15 @@ class ChangeDetectionApp(ThemedTk):
         main_frame = ttk.Frame(self, style="TFrame")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
+        # Create a scrollable container for the entire UI
+        scrollable_container = ScrollableFrame(main_frame)
+        scrollable_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Now all UI elements will go inside the scrollable container's scrollable_frame
+        content_frame = scrollable_container.scrollable_frame
+        
         # App header with branding
-        header_frame = ttk.Frame(main_frame, style="TFrame", height=60)
+        header_frame = ttk.Frame(content_frame, style="TFrame", height=60)
         header_frame.pack(fill=tk.X, pady=10)
         header_frame.pack_propagate(False)  # Maintain fixed height
 
@@ -272,7 +338,7 @@ class ChangeDetectionApp(ThemedTk):
         version_label.pack(side=tk.RIGHT, padx=20)
         
         # Top control area - use the Card style for control areas
-        control_frame = ttk.LabelFrame(main_frame, text="Controls", style="Card.TLabelframe")
+        control_frame = ttk.LabelFrame(content_frame, text="Controls", style="Card.TLabelframe")
         control_frame.pack(fill=tk.X, pady=15, padx=5)
         
         # Model checkpoint selection
@@ -328,17 +394,17 @@ class ChangeDetectionApp(ThemedTk):
         random_btn.pack(side=tk.LEFT, padx=5)
         
         # Image display area with card styling
-        display_label = ttk.Label(main_frame, text="Detection Results", style="Header.TLabel")
+        display_label = ttk.Label(content_frame, text="Detection Results", style="Header.TLabel")
         display_label.pack(anchor=tk.W, pady=(15, 5), padx=5)
         
         # Create a card-style frame for the image display
-        image_card = ttk.Frame(main_frame, style="Card.TFrame")
+        image_card = ttk.Frame(content_frame, style="Card.TFrame")
         image_card.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         self.image_frame = ttk.Frame(image_card, style="Card.TFrame", padding=10)
         self.image_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Status bar with themed appearance - FIXED to prevent going off screen
+        # Status bar - kept outside the scrollable area for constant visibility
         status_frame = ttk.Frame(main_frame, style="Card.TFrame", height=40)
         status_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
         status_frame.pack_propagate(False)  # Maintain fixed height
@@ -657,16 +723,33 @@ class ChangeDetectionApp(ThemedTk):
             prediction_colored = Image.fromarray(color_map[prediction_np])
             prediction_colored = prediction_colored.convert("RGB")
             
+            # Calculate performance metrics
+            target_np = target.squeeze().cpu().numpy().flatten()
+            prediction_flat = prediction.flatten()
+            
+            # Calculate metrics using sklearn
+            accuracy = accuracy_score(target_np, prediction_flat)
+            precision = precision_score(target_np, prediction_flat, zero_division=0)
+            recall = recall_score(target_np, prediction_flat, zero_division=0)
+            f1 = f1_score(target_np, prediction_flat, zero_division=0)
+            conf_matrix = confusion_matrix(target_np, prediction_flat)
+            
             # Send results to main thread
             self.queue.put(("image_processed", {
                 "image1_pil": image1_pil,
                 "image2_pil": image2_pil,
                 "target_pil": target_pil,
                 "prediction_colored": prediction_colored,
-                "idx": idx
+                "idx": idx,
+                "accuracy": accuracy,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "conf_matrix": conf_matrix
             }))
         except Exception as e:
             self.queue.put(("error", {"message": f"Failed to process image: {str(e)}"}))
+            print(f"Error in process_image_thread: {e}")
 
     def display_image_results(self, data):
         """Display the processed image results in the UI (called from main thread)"""
@@ -677,6 +760,11 @@ class ChangeDetectionApp(ThemedTk):
             target_pil = data["target_pil"]
             prediction_colored = data["prediction_colored"]
             idx = data["idx"]
+            accuracy = data["accuracy"]
+            precision = data["precision"]
+            recall = data["recall"]
+            f1 = data["f1"]
+            conf_matrix = data["conf_matrix"]
             
             # Hide and stop progress indicator now that processing is done
             self.progress.stop()
@@ -731,6 +819,52 @@ class ChangeDetectionApp(ThemedTk):
             canvas.get_tk_widget().configure(bg=BACKGROUND_COLOR, highlightbackground=BACKGROUND_COLOR, highlightcolor=BACKGROUND_COLOR)
             canvas.draw()
             canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+            
+            # Add performance metrics section
+            metrics_frame = ttk.LabelFrame(self.image_frame, text="Performance Metrics", style="Card.TLabelframe")
+            metrics_frame.pack(fill=tk.X, padx=5, pady=10)
+            
+            # Create two columns layout
+            metrics_info_frame = ttk.Frame(metrics_frame, style="Card.TFrame")
+            metrics_info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Display basic metrics in the left column
+            ttk.Label(metrics_info_frame, text="Accuracy:", style="Card.TLabel", anchor=tk.W).grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text=f"{accuracy:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+            
+            ttk.Label(metrics_info_frame, text="Precision:", style="Card.TLabel", anchor=tk.W).grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text=f"{precision:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+            
+            ttk.Label(metrics_info_frame, text="Recall:", style="Card.TLabel", anchor=tk.W).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text=f"{recall:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
+            
+            ttk.Label(metrics_info_frame, text="F1-Score:", style="Card.TLabel", anchor=tk.W).grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(metrics_info_frame, text=f"{f1:.4f}", style="Card.TLabel", anchor=tk.W).grid(row=3, column=1, sticky=tk.W, padx=5, pady=2)
+            
+            # Add confusion matrix in the right column
+            conf_matrix_frame = ttk.Frame(metrics_frame, style="Card.TFrame")
+            conf_matrix_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Calculate confusion matrix values for display
+            tn, fp, fn, tp = conf_matrix.ravel()
+            
+            # Create a simple grid of labels for confusion matrix
+            ttk.Label(conf_matrix_frame, text="Confusion Matrix:", style="Card.TLabel", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=3, sticky=tk.W, padx=5, pady=5)
+            
+            # Header row
+            ttk.Label(conf_matrix_frame, text="", style="Card.TLabel").grid(row=1, column=0, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text="Predicted No", style="Card.TLabel").grid(row=1, column=1, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text="Predicted Yes", style="Card.TLabel").grid(row=1, column=2, padx=5, pady=2)
+            
+            # Actual No row
+            ttk.Label(conf_matrix_frame, text="Actual No", style="Card.TLabel").grid(row=2, column=0, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"TN: {tn}", style="Card.TLabel", background=SUCCESS_COLOR).grid(row=2, column=1, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"FP: {fp}", style="Card.TLabel", background=ERROR_COLOR).grid(row=2, column=2, padx=5, pady=2)
+            
+            # Actual Yes row
+            ttk.Label(conf_matrix_frame, text="Actual Yes", style="Card.TLabel").grid(row=3, column=0, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"FN: {fn}", style="Card.TLabel", background=ERROR_COLOR).grid(row=3, column=1, padx=5, pady=2)
+            ttk.Label(conf_matrix_frame, text=f"TP: {tp}", style="Card.TLabel", background=SUCCESS_COLOR).grid(row=3, column=2, padx=5, pady=2)
             
             # Add a toolbar frame with theme-consistent buttons
             toolbar_frame = ttk.Frame(self.image_frame, style="Card.TFrame")
